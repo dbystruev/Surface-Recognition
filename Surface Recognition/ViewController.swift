@@ -20,11 +20,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Set the view's delegate
         sceneView.delegate = self
         
+        sceneView.debugOptions = [ARSCNDebugOptions.showFeaturePoints, ARSCNDebugOptions.showWorldOrigin]
+        
         // Show statistics such as fps and timing information
         sceneView.showsStatistics = true
         
         // Create a new scene
-        let scene = SCNScene(named: "art.scnassets/ship.scn")!
+        let scene = SCNScene()
         
         // Set the scene to the view
         sceneView.scene = scene
@@ -35,6 +37,8 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         // Create a session configuration
         let configuration = ARWorldTrackingConfiguration()
+        
+        configuration.planeDetection = [.horizontal]
 
         // Run the view's session
         sceneView.session.run(configuration)
@@ -48,6 +52,42 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
 
     // MARK: - ARSCNViewDelegate
+    func renderer(_ renderer: SCNSceneRenderer, didAdd node: SCNNode, for anchor: ARAnchor) {
+        guard let anchor = anchor as? ARPlaneAnchor else { return }
+        
+        node.addChildNode(createFloor(anchor: anchor))
+        node.addChildNode(createShip(anchor: anchor))
+    }
+    
+    func renderer(_ renderer: SCNSceneRenderer, didUpdate node: SCNNode, for anchor: ARAnchor) {
+        guard let anchor = anchor as? ARPlaneAnchor else { return }
+        
+        for node in node.childNodes {
+            node.position = SCNVector3(anchor.center.x, 0, anchor.center.z)
+            
+            if let plane = node.geometry as? SCNPlane {
+                plane.width = CGFloat(anchor.extent.x)
+                plane.height = CGFloat(anchor.extent.z)
+            }
+        }
+        
+    }
+    
+    func createFloor(anchor: ARPlaneAnchor) -> SCNNode {
+        let extent = anchor.extent
+        let width = CGFloat(extent.x)
+        let height = CGFloat(extent.z)
+        let node = SCNNode(geometry: SCNPlane(width: width, height: height))
+        node.eulerAngles.x = -.pi / 2
+        node.opacity = 0.25
+        return node
+    }
+    
+    func createShip(anchor: ARPlaneAnchor) -> SCNNode {
+        let node = SCNScene(named: "art.scnassets/ship.scn")!.rootNode.clone()
+        node.position = SCNVector3(anchor.center.x, 0, anchor.center.z)
+        return node
+    }
     
 /*
     // Override to create and configure nodes for anchors added to the view's session.
